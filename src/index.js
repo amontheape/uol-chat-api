@@ -1,5 +1,5 @@
 import express, { json } from 'express';
-import { MongoClient } from 'mongodb';
+import { MongoClient, ObjectId } from 'mongodb';
 import cors from 'cors';
 import joi from 'joi';
 import dotenv from 'dotenv';
@@ -143,6 +143,28 @@ app.get('/messages', async(req, res) => {
     res.sendStatus(500);
     console.log(
       `GET messages-list error: 
+      ${err}`
+    );
+  }
+})
+
+app.post('/status', async(req, res) => {
+  try {
+    const { mongoClient, dataBase } = await dbConnect();
+
+    const isUser = await dataBase.collection(process.env.USER_COLLECTION).findOne({ name: req.headers.user });
+
+    if(isUser){
+      await dataBase.collection(process.env.USER_COLLECTION).updateOne({ _id: isUser._id }, {$set: { lastStatus: Date.now()} } );
+      res.sendStatus(200);
+      mongoClient.close();
+    } else {
+      res.status(404).send('Usuário não encontrado');
+    }
+  } catch (err) {
+    res.sendStatus(500);
+    console.log(
+      `POST status-update error: 
       ${err}`
     );
   }
