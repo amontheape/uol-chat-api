@@ -122,4 +122,30 @@ app.post('/messages', async(req, res) => {
   }
 })
 
+app.get('/messages', async(req, res) => {
+  const limit = parseInt(req.query.limit);
+
+  try{
+    const { mongoClient, dataBase } = await dbConnect();
+
+    const allMessages = await dataBase.collection(process.env.MSG_COLLECTION).find({
+      $or:[
+        { from: req.headers.user },
+        { to: req.headers.user },
+        { to: "Todos" },
+        { type: "message"}
+      ]}).toArray();
+
+    res.send(allMessages.slice(-limit));
+
+    mongoClient.close();
+  } catch (err) {
+    res.sendStatus(500);
+    console.log(
+      `GET messages-list error: 
+      ${err}`
+    );
+  }
+})
+
 app.listen(5000);
