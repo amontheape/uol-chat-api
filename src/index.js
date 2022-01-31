@@ -1,5 +1,5 @@
 import express, { json } from 'express';
-import { MongoClient, ObjectId } from 'mongodb';
+import { MongoClient } from 'mongodb';
 import cors from 'cors';
 import joi from 'joi';
 import dotenv from 'dotenv';
@@ -56,7 +56,17 @@ app.post('/participants', async (req, res) => {
         .collection(process.env.USER_COLLECTION)
         .insertOne({ name: req.body.name, lastStatus: Date.now() });
   
-      res.sendStatus(201) 
+      await dataBase
+        .collection(process.env.MSG_COLLECTION)
+        .insertOne({
+          from: req.body.name,
+          to: "Todos", 
+          text: "entra na sala...",
+          type: 'status',
+          time: Date.now()
+        });
+
+      res.sendStatus(201);
       mongoClient.close();
     } else {
       res.status(409).send("Este nome já está em uso");
@@ -155,7 +165,10 @@ app.post('/status', async(req, res) => {
     const isUser = await dataBase.collection(process.env.USER_COLLECTION).findOne({ name: req.headers.user });
 
     if(isUser){
-      await dataBase.collection(process.env.USER_COLLECTION).updateOne({ _id: isUser._id }, {$set: { lastStatus: Date.now()} } );
+      await dataBase
+        .collection(process.env.USER_COLLECTION)
+        .updateOne({ _id: isUser._id }, {$set: { lastStatus: Date.now()} } );
+
       res.sendStatus(200);
       mongoClient.close();
     } else {
@@ -169,5 +182,39 @@ app.post('/status', async(req, res) => {
     );
   }
 })
+
+setInterval(async () => {
+  const { mongoClient, dataBase } = await dbConnect();
+
+  try {
+    const users = await dataBase.collection(process.env.USER_COLLECTION).find({}).toArray();
+    
+    for ( const user of users ) {
+      if( Date.now() - user.lastStatus > 10000 ){
+        await dataBase
+          .collection(process.env.USER_COLLECTION)
+          .deleteOne({ _id: user._id });
+
+        await dataBase
+          .collection(process.env.MSG_COLLECTION)
+          .insertOne({
+            from: user.name,
+            to: "Todos",
+            text: "sai na sala...",
+            type: 'status',
+            time: Date.now()
+          });
+      }
+    }
+    
+    mongoClient.close();
+  } catch (err) {
+    res.sendStatus(500);
+    console.log(
+      `User removal erro: 
+      ${err}`
+    );
+  }
+}, 15000)
 
 app.listen(5000);
