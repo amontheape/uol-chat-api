@@ -3,6 +3,7 @@ import { MongoClient } from 'mongodb';
 import cors from 'cors';
 import joi from 'joi';
 import dotenv from 'dotenv';
+import dayjs from 'dayjs';
 dotenv.config();
 
 const app = express();
@@ -28,6 +29,12 @@ async function dbConnect() {
 
 const userSchema = joi.object({
   name: joi.string().required(),
+})
+
+const messageSchema = joi.object({
+  to: joi.string().required(),
+  text: joi.string().required(),
+  type: joi.valid('message', 'private_message').required(),
 })
 
 app.post('/participants', async (req, res) => {
@@ -73,6 +80,43 @@ app.get('/participants', async(req, res) => {
     res.sendStatus(500);
     console.log(
       `GET userList error: 
+      ${err}`
+    );
+  }
+})
+
+app.post('/messages', async(req, res) => {
+  const validation = messageSchema.validate(req.body, { abortEarly: false });
+  if (validation.error) {
+    res.status(422).send(validation.error.details.map(err => err.message));
+    return;
+  }
+
+  const from = req.headers.user;
+
+  try {
+    const { mongoClient, dataBase } = await dbConnect();
+
+    const isUser = await dataBase.collection(process.env.USER_COLLECTION).findOne({ name: from});
+
+    if(isUser){
+      await dataBase.collection(process.env.MSG_COLLECTION).insertOne({
+        from: from,
+        to: req.body.to,
+        text: req.body.text,
+        type: req.body.type,
+        time: dayjs().format("hh:mm:ss"),
+       });
+      res.sendStatus(201);
+      mongoClient.close();
+    } else {
+      res.status(422).send("Usuário não existente");
+    }
+
+  } catch (err) {
+    res.sendStatus(500);
+    console.log(
+      `POST message error: 
       ${err}`
     );
   }
