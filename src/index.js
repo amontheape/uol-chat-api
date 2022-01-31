@@ -63,7 +63,7 @@ app.post('/participants', async (req, res) => {
           to: "Todos", 
           text: "entra na sala...",
           type: 'status',
-          time: Date.now()
+          time: dayjs().format('hh:mm:ss')
         });
 
       res.sendStatus(201);
@@ -202,7 +202,7 @@ setInterval(async () => {
             to: "Todos",
             text: "sai na sala...",
             type: 'status',
-            time: Date.now()
+            time: dayjs().format('hh:mm:ss')
           });
       }
     }
