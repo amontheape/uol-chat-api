@@ -63,4 +63,19 @@ app.post('/participants', async (req, res) => {
   }
 });
 
+app.get('/participants', async(req, res) => {
+  try {
+    const { mongoClient, dataBase } = await dbConnect();
+
+    res.send( await dataBase.collection(process.env.USER_COLLECTION).find({}).toArray())
+    mongoClient.close();
+  } catch (err) {
+    res.sendStatus(500);
+    console.log(
+      `GET userList error: 
+      ${err}`
+    );
+  }
+})
+
 app.listen(5000);
